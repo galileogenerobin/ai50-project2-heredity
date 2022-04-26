@@ -139,7 +139,78 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         * everyone in set `have_trait` has the trait, and
         * everyone not in set` have_trait` does not have the trait.
     """
-    raise NotImplementedError
+    output = 1
+
+    # Calculate the probability of each person having the indicated number of genes and update the joint probability
+    for person in set(people):
+        # Initialize the parents' gene counts to None
+        mother_gene_count = None
+        father_gene_count = None
+        # If the person's parents are identified, check the number of genes for the person's parents
+        mother = people[person]["mother"]
+        father = people[person]["father"]
+        if mother is not None and father is not None:
+            mother_gene_count = 1 if mother in one_gene else 2 if mother in two_genes else 0
+            father_gene_count = 1 if father in one_gene else 2 if father in two_genes else 0
+
+        # Calculate probability of the person having a given number of genes based on their parents' gene count and update our output
+        # The gene count for our computation will depend on whether the person is in one_gene, two_genes or neither
+        gene_count = 1 if person in one_gene else 2 if person in two_genes else 0
+        # 'probability_of_genes' is our own helper function
+        output = output * probability_of_genes(mother_gene_count, father_gene_count, gene_count)
+
+        # Given the person's gene count, we can then calculate the probability that they have the trait or not and update our output
+        # We can read this as the probability that, given a person with 'gene_count' genes, they have the trait (i.e. in have_trait) or not
+        output = output * PROBS["trait"][gene_count][person in have_trait]
+        
+    return output
+    # raise NotImplementedError
+
+
+def probability_of_genes(mother_gene_count, father_gene_count, gene_count):
+    """
+    This is our own function that will calculate the probability that a given 'person' will have 'gene_count' number of genes
+    The probability will depend on how may genes the person's parents have
+    """
+    # If no parental information, we just return the unconditional probability from our global table
+    if mother_gene_count is None and father_gene_count is None:
+        return PROBS["gene"][gene_count]
+    else:
+        # We know that from each parent, a child can either acquire 0 or 1 of the gene, thus we can build a probability distribution like so
+        # Where the key = number of genes of one parent, the inner_key = number of genes acquired by the child from that parent,
+        # and value = probability that child acquires inner_key # of genes from the parent with key # of genes
+        # Thus, for example, prob_acquire_gene[0][1] is the probability that a child acquires 1 gene from a parent with 0 gene count
+        prob_acquire_gene = {
+            0: {
+                # If the parent has 0 gene, then the child can only acquire the gene from the parent via mutation
+                0: 1 - PROBS["mutation"],
+                1: PROBS["mutation"]
+            },
+            1: {
+                # If the parent has 1 gene, then the child can have 0 genes if they acquire the non-gene that doesn't mutate
+                # Or they acquire the gene which then mutates; the opposite is true for the child to acquire 1 gene
+                # Note that both cases evaluate to 0.5
+                0: 0.5 * (1 - PROBS["mutation"]) + 0.5 * PROBS["mutation"],
+                1: 0.5 * PROBS["mutation"] + 0.5 * (1 - PROBS["mutation"])
+            },
+            2: {
+                # If the parent has 2 genes, then the child will definitely inherit the gene, it's now a matter of whether the gene mutates or not
+                0: PROBS["mutation"],
+                1: 1 - PROBS["mutation"]
+            }
+        }
+        
+        # Based on the above distribution, we can calculate the probability that a child acquires 0, 1 or 2 genes
+        if gene_count == 0:
+            # Child acquires 0 gene from both parents
+            return prob_acquire_gene[mother_gene_count][0] * prob_acquire_gene[father_gene_count][0]
+        elif gene_count == 2:
+            # Child acquires 1 gene from each parent
+            return prob_acquire_gene[mother_gene_count][1] * prob_acquire_gene[father_gene_count][1]
+        else:
+            # Child acquires 1 gene from one parent and 0 from the other
+            return (prob_acquire_gene[mother_gene_count][0] * prob_acquire_gene[father_gene_count][1]
+                    + prob_acquire_gene[mother_gene_count][1] * prob_acquire_gene[father_gene_count][0])
 
 
 def update(probabilities, one_gene, two_genes, have_trait, p):
