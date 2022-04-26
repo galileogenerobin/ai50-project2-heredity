@@ -157,11 +157,11 @@ def joint_probability(people, one_gene, two_genes, have_trait):
         # The gene count for our computation will depend on whether the person is in one_gene, two_genes or neither
         gene_count = 1 if person in one_gene else 2 if person in two_genes else 0
         # 'probability_of_genes' is our own helper function
-        output = output * probability_of_genes(mother_gene_count, father_gene_count, gene_count)
+        output *= probability_of_genes(mother_gene_count, father_gene_count, gene_count)
 
-        # Given the person's gene count, we can then calculate the probability that they have the trait or not and update our output
-        # We can read this as the probability that, given a person with 'gene_count' genes, they have the trait (i.e. in have_trait) or not
-        output = output * PROBS["trait"][gene_count][person in have_trait]
+        # Given the person's gene count, we can then calculate the probability that they have the trait or not from our global table and update our output
+        trait_value = person in have_trait
+        output *= PROBS["trait"][gene_count][trait_value]
         
     return output
     # raise NotImplementedError
@@ -220,7 +220,17 @@ def update(probabilities, one_gene, two_genes, have_trait, p):
     Which value for each distribution is updated depends on whether
     the person is in `have_gene` and `have_trait`, respectively.
     """
-    raise NotImplementedError
+    # Iterate through each person in probabilities
+    for person in set(probabilities):
+        # Person's gene_count in this scenario
+        gene_count = 1 if person in one_gene else 2 if person in two_genes else 0
+        # Person's trait value
+        trait_value = person in have_trait
+        # Update the probabilities value for the person
+        probabilities[person]["gene"][gene_count] += p
+        probabilities[person]["trait"][trait_value] += p
+        
+    # raise NotImplementedError
 
 
 def normalize(probabilities):
